@@ -1,10 +1,22 @@
 import {each, callback as call, sign, valueOrDefault} from 'chart.js/helpers';
-import {panFunctions, updateRange, zoomFunctions, zoomRectFunctions} from './scale.types';
+import {
+  panFunctions,
+  updateRange,
+  zoomFunctions,
+  zoomRectFunctions,
+} from './scale.types';
 import {getState} from './state';
 import {directionEnabled, getEnabledScalesByPoint} from './utils';
 
-function shouldUpdateScaleLimits(scale, originalScaleLimits, updatedScaleLimits) {
-  const {id, options: {min, max}} = scale;
+function shouldUpdateScaleLimits(
+  scale,
+  originalScaleLimits,
+  updatedScaleLimits
+) {
+  const {
+    id,
+    options: {min, max},
+  } = scale;
   if (!originalScaleLimits[id] || !updatedScaleLimits[id]) {
     return true;
   }
@@ -25,7 +37,9 @@ function storeOriginalScaleLimits(chart, state) {
   const {originalScaleLimits, updatedScaleLimits} = state;
 
   each(scales, function(scale) {
-    if (shouldUpdateScaleLimits(scale, originalScaleLimits, updatedScaleLimits)) {
+    if (
+      shouldUpdateScaleLimits(scale, originalScaleLimits, updatedScaleLimits)
+    ) {
       originalScaleLimits[scale.id] = {
         min: {scale: scale.min, options: scale.options.min},
         max: {scale: scale.max, options: scale.options.max},
@@ -62,11 +76,35 @@ function getCenter(chart) {
  * @param {string} [transition] Which transition mode to use. Defaults to 'none'
  */
 export function zoom(chart, amount, transition = 'none') {
-  const {x = 1, y = 1, focalPoint = getCenter(chart)} = typeof amount === 'number' ? {x: amount, y: amount} : amount;
+  const {
+    x = 1,
+    y = 1,
+    focalPoint = getCenter(chart),
+  } = typeof amount === 'number' ? {x: amount, y: amount} : amount;
   const state = getState(chart);
-  const {options: {limits, zoom: zoomOptions}} = state;
+  const {
+    options: {limits, zoom: zoomOptions},
+  } = state;
 
   storeOriginalScaleLimits(chart, state);
+
+  const numGridlines = 20;
+  const originalMin = state.originalScaleLimits.x.min.scale;
+  const originalMax = state.originalScaleLimits.x.max.scale;
+  const newMin = chart.scales.x.min;
+  const newMax = chart.scales.x.max;
+  const updatedRange = newMax - newMin;
+  const interval = updatedRange / numGridlines;
+  const ticks = [];
+  let i = originalMin;
+  while (i <= originalMax) {
+    ticks.push(i);
+    i += interval;
+  }
+  state.intervals = ticks;
+  chart.options.scales.x.afterBuildTicks = (scale) => {
+    scale.ticks = ticks.filter((v) => v > newMin && v < newMax).map((v) => ({value: v}));
+  };
 
   const xEnabled = x !== 1;
   const yEnabled = y !== 1;
@@ -87,7 +125,9 @@ export function zoom(chart, amount, transition = 'none') {
 
 export function zoomRect(chart, p0, p1, transition = 'none') {
   const state = getState(chart);
-  const {options: {limits, zoom: zoomOptions}} = state;
+  const {
+    options: {limits, zoom: zoomOptions},
+  } = state;
   const {mode = 'xy'} = zoomOptions;
 
   storeOriginalScaleLimits(chart, state);
@@ -138,7 +178,10 @@ function getOriginalRange(state, scaleId) {
     return;
   }
   const {min, max} = original;
-  return valueOrDefault(max.options, max.scale) - valueOrDefault(min.options, min.scale);
+  return (
+    valueOrDefault(max.options, max.scale) -
+    valueOrDefault(min.options, min.scale)
+  );
 }
 
 export function getZoomLevel(chart) {
@@ -148,7 +191,8 @@ export function getZoomLevel(chart) {
   each(chart.scales, function(scale) {
     const origRange = getOriginalRange(state, scale.id);
     if (origRange) {
-      const level = Math.round(origRange / (scale.max - scale.min) * 100) / 100;
+      const level =
+        Math.round((origRange / (scale.max - scale.min)) * 100) / 100;
       min = Math.min(min, level);
       max = Math.max(max, level);
     }
@@ -174,9 +218,12 @@ function panScale(scale, delta, limits, state) {
 }
 
 export function pan(chart, delta, enabledScales, transition = 'none') {
-  const {x = 0, y = 0} = typeof delta === 'number' ? {x: delta, y: delta} : delta;
+  const {x = 0, y = 0} =
+    typeof delta === 'number' ? {x: delta, y: delta} : delta;
   const state = getState(chart);
-  const {options: {pan: panOptions, limits}} = state;
+  const {
+    options: {pan: panOptions, limits},
+  } = state;
   const {onPan} = panOptions || {};
 
   storeOriginalScaleLimits(chart, state);
@@ -202,7 +249,10 @@ export function getInitialScaleBounds(chart) {
   storeOriginalScaleLimits(chart, state);
   const scaleBounds = {};
   for (const scaleId of Object.keys(chart.scales)) {
-    const {min, max} = state.originalScaleLimits[scaleId] || {min: {}, max: {}};
+    const {min, max} = state.originalScaleLimits[scaleId] || {
+      min: {},
+      max: {},
+    };
     scaleBounds[scaleId] = {min: min.scale, max: max.scale};
   }
 
@@ -214,11 +264,17 @@ export function isZoomedOrPanned(chart) {
   for (const scaleId of Object.keys(chart.scales)) {
     const {min: originalMin, max: originalMax} = scaleBounds[scaleId];
 
-    if (originalMin !== undefined && chart.scales[scaleId].min !== originalMin) {
+    if (
+      originalMin !== undefined &&
+      chart.scales[scaleId].min !== originalMin
+    ) {
       return true;
     }
 
-    if (originalMax !== undefined && chart.scales[scaleId].max !== originalMax) {
+    if (
+      originalMax !== undefined &&
+      chart.scales[scaleId].max !== originalMax
+    ) {
       return true;
     }
   }
